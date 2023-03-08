@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<bugrepository name="Math102">
+ <bug id="175" opendate="2004-10-06 17:02:00" fixdate="2004-10-18 17:40:00">
+    <buginformation>
+      <summary>chiSquare(double[] expected, long[] observed) is returning incorrect test statistic</summary>
+      <description>
+      ChiSquareTestImpl is returning incorrect chi-squared value. An implicit assumption of public double chiSquare(double[] expected, long[] observed) is that the sum of expected and observed are equal. That is, in the code:
+for (int i = 0; i &lt; observed.length; i++)
+      this calculation is only correct if sum(observed)==sum(expected). When they are not equal then one must rescale the expected value by sum(observed) / sum(expected) so that they are.
+Ironically, it is an example in the unit test ChiSquareTestTest that highlights the error:
+      long[] observed1 =
+      ;
+double[] expected1 =
+      ;
+assertEquals( "chi-square test statistic", 16.4131070362, testStatistic.chiSquare(expected1, observed1), 1E-10);
+assertEquals("chi-square p-value", 0.002512096, testStatistic.chiSquareTest(expected1, observed1), 1E-9);
+      16.413 is not correct because the expected values do not make sense, they should be: 521.19403 581.37313 88.11940 65.55224 39.76119 so that the sum of expected equals 1296 which is the sum of observed.
+      Here is some R code (r-project.org) which proves it:
+&gt; o1
+[1] 500 623 72 70 31
+&gt; e1
+[1] 485 541 82 61 37
+&gt; chisq.test(o1,p=e1,rescale.p=TRUE)
+      Chi-squared test for given probabilities
+      data: o1
+X-squared = 9.0233, df = 4, p-value = 0.06052
+      &gt; chisq.test(o1,p=e1,rescale.p=TRUE)$observed
+[1] 500 623 72 70 31
+&gt; chisq.test(o1,p=e1,rescale.p=TRUE)$expected
+[1] 521.19403 581.37313 88.11940 65.55224 39.76119
+
+      </description>
+    </buginformation>
+    <fixedFiles>
+      <file>org.apache.commons.math.analysis.BisectionSolver.java</file>
+      <file>org.apache.commons.math.analysis.BrentSolver.java</file>
+      <file>org.apache.commons.math.analysis.DifferentiableUnivariateRealFunction.java</file>
+      <file>org.apache.commons.math.analysis.DividedDifferenceInterpolator.java</file>
+      <file>org.apache.commons.math.analysis.LaguerreSolver.java</file>
+      <file>org.apache.commons.math.analysis.MullerSolver.java</file>
+      <file>org.apache.commons.math.analysis.NevilleInterpolator.java</file>
+      <file>org.apache.commons.math.analysis.NewtonSolver.java</file>
+      <file>org.apache.commons.math.analysis.PolynomialFunction.java</file>
+      <file>org.apache.commons.math.analysis.PolynomialFunctionLagrangeForm.java</file>
+      <file>org.apache.commons.math.analysis.PolynomialFunctionNewtonForm.java</file>
+      <file>org.apache.commons.math.analysis.PolynomialSplineFunction.java</file>
+      <file>org.apache.commons.math.analysis.RiddersSolver.java</file>
+      <file>org.apache.commons.math.analysis.RombergIntegrator.java</file>
+      <file>org.apache.commons.math.analysis.SecantSolver.java</file>
+      <file>org.apache.commons.math.analysis.SimpsonIntegrator.java</file>
+      <file>org.apache.commons.math.analysis.SplineInterpolator.java</file>
+      <file>org.apache.commons.math.analysis.TrapezoidIntegrator.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealFunction.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealIntegrator.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealIntegratorImpl.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealInterpolator.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealSolver.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealSolverFactory.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealSolverFactoryImpl.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealSolverImpl.java</file>
+      <file>org.apache.commons.math.analysis.UnivariateRealSolverUtils.java</file>
+      <file>org.apache.commons.math.ArgumentOutsideDomainException.java</file>
+      <file>org.apache.commons.math.complex.Complex.java</file>
+      <file>org.apache.commons.math.complex.ComplexFormat.java</file>
+      <file>org.apache.commons.math.complex.ComplexUtils.java</file>
+      <file>org.apache.commons.math.ConvergenceException.java</file>
+      <file>org.apache.commons.math.DimensionMismatchException.java</file>
+      <file>org.apache.commons.math.distribution.AbstractContinuousDistribution.java</file>
+      <file>org.apache.commons.math.distribution.AbstractDistribution.java</file>
+      <file>org.apache.commons.math.distribution.AbstractIntegerDistribution.java</file>
+      <file>org.apache.commons.math.distribution.BinomialDistribution.java</file>
+      <file>org.apache.commons.math.distribution.BinomialDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.CauchyDistribution.java</file>
+      <file>org.apache.commons.math.distribution.CauchyDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.ChiSquaredDistribution.java</file>
+      <file>org.apache.commons.math.distribution.ChiSquaredDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.ContinuousDistribution.java</file>
+      <file>org.apache.commons.math.distribution.DiscreteDistribution.java</file>
+      <file>org.apache.commons.math.distribution.Distribution.java</file>
+      <file>org.apache.commons.math.distribution.DistributionFactory.java</file>
+      <file>org.apache.commons.math.distribution.DistributionFactoryImpl.java</file>
+      <file>org.apache.commons.math.distribution.ExponentialDistribution.java</file>
+      <file>org.apache.commons.math.distribution.ExponentialDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.FDistribution.java</file>
+      <file>org.apache.commons.math.distribution.FDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.GammaDistribution.java</file>
+      <file>org.apache.commons.math.distribution.GammaDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.HypergeometricDistribution.java</file>
+      <file>org.apache.commons.math.distribution.HypergeometricDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.IntegerDistribution.java</file>
+      <file>org.apache.commons.math.distribution.NormalDistribution.java</file>
+      <file>org.apache.commons.math.distribution.NormalDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.PascalDistribution.java</file>
+      <file>org.apache.commons.math.distribution.PascalDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.PoissonDistribution.java</file>
+      <file>org.apache.commons.math.distribution.PoissonDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.TDistribution.java</file>
+      <file>org.apache.commons.math.distribution.TDistributionImpl.java</file>
+      <file>org.apache.commons.math.distribution.WeibullDistribution.java</file>
+      <file>org.apache.commons.math.distribution.WeibullDistributionImpl.java</file>
+      <file>org.apache.commons.math.DuplicateSampleAbscissaException.java</file>
+      <file>org.apache.commons.math.estimation.EstimatedParameter.java</file>
+      <file>org.apache.commons.math.estimation.EstimationException.java</file>
+      <file>org.apache.commons.math.estimation.EstimationProblem.java</file>
+      <file>org.apache.commons.math.estimation.Estimator.java</file>
+      <file>org.apache.commons.math.estimation.GaussNewtonEstimator.java</file>
+      <file>org.apache.commons.math.estimation.LevenbergMarquardtEstimator.java</file>
+      <file>org.apache.commons.math.estimation.SimpleEstimationProblem.java</file>
+      <file>org.apache.commons.math.estimation.WeightedMeasurement.java</file>
+      <file>org.apache.commons.math.fraction.Fraction.java</file>
+      <file>org.apache.commons.math.fraction.FractionConversionException.java</file>
+      <file>org.apache.commons.math.fraction.FractionFormat.java</file>
+      <file>org.apache.commons.math.fraction.ProperFractionFormat.java</file>
+      <file>org.apache.commons.math.FunctionEvaluationException.java</file>
+      <file>org.apache.commons.math.geometry.CardanEulerSingularityException.java</file>
+      <file>org.apache.commons.math.geometry.NotARotationMatrixException.java</file>
+      <file>org.apache.commons.math.geometry.Rotation.java</file>
+      <file>org.apache.commons.math.geometry.RotationOrder.java</file>
+      <file>org.apache.commons.math.geometry.Vector3D.java</file>
+      <file>org.apache.commons.math.linear.BigMatrix.java</file>
+      <file>org.apache.commons.math.linear.BigMatrixImpl.java</file>
+      <file>org.apache.commons.math.linear.InvalidMatrixException.java</file>
+      <file>org.apache.commons.math.linear.MatrixIndexException.java</file>
+      <file>org.apache.commons.math.linear.MatrixUtils.java</file>
+      <file>org.apache.commons.math.linear.QRDecomposition.java</file>
+      <file>org.apache.commons.math.linear.QRDecompositionImpl.java</file>
+      <file>org.apache.commons.math.linear.RealMatrix.java</file>
+      <file>org.apache.commons.math.linear.RealMatrixImpl.java</file>
+      <file>org.apache.commons.math.MathConfigurationException.java</file>
+      <file>org.apache.commons.math.MathException.java</file>
+      <file>org.apache.commons.math.MaxIterationsExceededException.java</file>
+      <file>org.apache.commons.math.MessagesResources_fr.java</file>
+      <file>org.apache.commons.math.ode.AbstractStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.AdaptiveStepsizeIntegrator.java</file>
+      <file>org.apache.commons.math.ode.ClassicalRungeKuttaIntegrator.java</file>
+      <file>org.apache.commons.math.ode.ClassicalRungeKuttaStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.ContinuousOutputModel.java</file>
+      <file>org.apache.commons.math.ode.DerivativeException.java</file>
+      <file>org.apache.commons.math.ode.DormandPrince54Integrator.java</file>
+      <file>org.apache.commons.math.ode.DormandPrince54StepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.DormandPrince853Integrator.java</file>
+      <file>org.apache.commons.math.ode.DormandPrince853StepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.DummyStepHandler.java</file>
+      <file>org.apache.commons.math.ode.DummyStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.EmbeddedRungeKuttaIntegrator.java</file>
+      <file>org.apache.commons.math.ode.EulerIntegrator.java</file>
+      <file>org.apache.commons.math.ode.EulerStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.FirstOrderConverter.java</file>
+      <file>org.apache.commons.math.ode.FirstOrderDifferentialEquations.java</file>
+      <file>org.apache.commons.math.ode.FirstOrderIntegrator.java</file>
+      <file>org.apache.commons.math.ode.FixedStepHandler.java</file>
+      <file>org.apache.commons.math.ode.GillIntegrator.java</file>
+      <file>org.apache.commons.math.ode.GillStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.GraggBulirschStoerIntegrator.java</file>
+      <file>org.apache.commons.math.ode.GraggBulirschStoerStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.HighamHall54Integrator.java</file>
+      <file>org.apache.commons.math.ode.HighamHall54StepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.IntegratorException.java</file>
+      <file>org.apache.commons.math.ode.MidpointIntegrator.java</file>
+      <file>org.apache.commons.math.ode.MidpointStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.RungeKuttaIntegrator.java</file>
+      <file>org.apache.commons.math.ode.RungeKuttaStepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.SecondOrderDifferentialEquations.java</file>
+      <file>org.apache.commons.math.ode.SecondOrderIntegrator.java</file>
+      <file>org.apache.commons.math.ode.StepHandler.java</file>
+      <file>org.apache.commons.math.ode.StepInterpolator.java</file>
+      <file>org.apache.commons.math.ode.StepNormalizer.java</file>
+      <file>org.apache.commons.math.ode.SwitchingFunction.java</file>
+      <file>org.apache.commons.math.ode.SwitchingFunctionsHandler.java</file>
+      <file>org.apache.commons.math.ode.SwitchState.java</file>
+      <file>org.apache.commons.math.ode.ThreeEighthesIntegrator.java</file>
+      <file>org.apache.commons.math.ode.ThreeEighthesStepInterpolator.java</file>
+      <file>org.apache.commons.math.optimization.ConvergenceChecker.java</file>
+      <file>org.apache.commons.math.optimization.CostException.java</file>
+      <file>org.apache.commons.math.optimization.CostFunction.java</file>
+      <file>org.apache.commons.math.optimization.DirectSearchOptimizer.java</file>
+      <file>org.apache.commons.math.optimization.MultiDirectional.java</file>
+      <file>org.apache.commons.math.optimization.NelderMead.java</file>
+      <file>org.apache.commons.math.optimization.PointCostPair.java</file>
+      <file>org.apache.commons.math.random.AbstractRandomGenerator.java</file>
+      <file>org.apache.commons.math.random.CorrelatedRandomVectorGenerator.java</file>
+      <file>org.apache.commons.math.random.EmpiricalDistribution.java</file>
+      <file>org.apache.commons.math.random.EmpiricalDistributionImpl.java</file>
+      <file>org.apache.commons.math.random.GaussianRandomGenerator.java</file>
+      <file>org.apache.commons.math.random.JDKRandomGenerator.java</file>
+      <file>org.apache.commons.math.random.NormalizedRandomGenerator.java</file>
+      <file>org.apache.commons.math.random.NotPositiveDefiniteMatrixException.java</file>
+      <file>org.apache.commons.math.random.RandomAdaptor.java</file>
+      <file>org.apache.commons.math.random.RandomData.java</file>
+      <file>org.apache.commons.math.random.RandomDataImpl.java</file>
+      <file>org.apache.commons.math.random.RandomGenerator.java</file>
+      <file>org.apache.commons.math.random.RandomVectorGenerator.java</file>
+      <file>org.apache.commons.math.random.UncorrelatedRandomVectorGenerator.java</file>
+      <file>org.apache.commons.math.random.UniformRandomGenerator.java</file>
+      <file>org.apache.commons.math.random.ValueServer.java</file>
+      <file>org.apache.commons.math.special.Beta.java</file>
+      <file>org.apache.commons.math.special.Erf.java</file>
+      <file>org.apache.commons.math.special.Gamma.java</file>
+      <file>org.apache.commons.math.stat.descriptive.AbstractStorelessUnivariateStatistic.java</file>
+      <file>org.apache.commons.math.stat.descriptive.AbstractUnivariateStatistic.java</file>
+      <file>org.apache.commons.math.stat.descriptive.DescriptiveStatistics.java</file>
+      <file>org.apache.commons.math.stat.descriptive.DescriptiveStatisticsImpl.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.FirstMoment.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.FourthMoment.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.GeometricMean.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.Kurtosis.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.Mean.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.SecondMoment.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.Skewness.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.StandardDeviation.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.ThirdMoment.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.Variance.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.VectorialCovariance.java</file>
+      <file>org.apache.commons.math.stat.descriptive.moment.VectorialMean.java</file>
+      <file>org.apache.commons.math.stat.descriptive.rank.Max.java</file>
+      <file>org.apache.commons.math.stat.descriptive.rank.Median.java</file>
+      <file>org.apache.commons.math.stat.descriptive.rank.Min.java</file>
+      <file>org.apache.commons.math.stat.descriptive.rank.Percentile.java</file>
+      <file>org.apache.commons.math.stat.descriptive.StatisticalSummary.java</file>
+      <file>org.apache.commons.math.stat.descriptive.StatisticalSummaryValues.java</file>
+      <file>org.apache.commons.math.stat.descriptive.StorelessUnivariateStatistic.java</file>
+      <file>org.apache.commons.math.stat.descriptive.summary.Product.java</file>
+      <file>org.apache.commons.math.stat.descriptive.summary.Sum.java</file>
+      <file>org.apache.commons.math.stat.descriptive.summary.SumOfLogs.java</file>
+      <file>org.apache.commons.math.stat.descriptive.summary.SumOfSquares.java</file>
+      <file>org.apache.commons.math.stat.descriptive.SummaryStatistics.java</file>
+      <file>org.apache.commons.math.stat.descriptive.SummaryStatisticsImpl.java</file>
+      <file>org.apache.commons.math.stat.descriptive.SynchronizedDescriptiveStatistics.java</file>
+      <file>org.apache.commons.math.stat.descriptive.SynchronizedSummaryStatistics.java</file>
+      <file>org.apache.commons.math.stat.descriptive.UnivariateStatistic.java</file>
+      <file>org.apache.commons.math.stat.Frequency.java</file>
+      <file>org.apache.commons.math.stat.inference.ChiSquareTest.java</file>
+      <file>org.apache.commons.math.stat.inference.ChiSquareTestImpl.java</file>
+      <file>org.apache.commons.math.stat.inference.TestFactory.java</file>
+      <file>org.apache.commons.math.stat.inference.TestFactoryImpl.java</file>
+      <file>org.apache.commons.math.stat.inference.TestUtils.java</file>
+      <file>org.apache.commons.math.stat.inference.TTest.java</file>
+      <file>org.apache.commons.math.stat.inference.TTestImpl.java</file>
+      <file>org.apache.commons.math.stat.inference.UnknownDistributionChiSquareTest.java</file>
+      <file>org.apache.commons.math.stat.regression.SimpleRegression.java</file>
+      <file>org.apache.commons.math.stat.StatUtils.java</file>
+      <file>org.apache.commons.math.transform.FastCosineTransformer.java</file>
+      <file>org.apache.commons.math.transform.FastFourierTransformer.java</file>
+      <file>org.apache.commons.math.transform.FastSineTransformer.java</file>
+      <file>org.apache.commons.math.util.ContinuedFraction.java</file>
+      <file>org.apache.commons.math.util.DefaultTransformer.java</file>
+      <file>org.apache.commons.math.util.DoubleArray.java</file>
+      <file>org.apache.commons.math.util.MathUtils.java</file>
+      <file>org.apache.commons.math.util.NumberTransformer.java</file>
+      <file>org.apache.commons.math.util.ResizableDoubleArray.java</file>
+      <file>org.apache.commons.math.util.TransformerMap.java</file>
+    </fixedFiles>
+  </bug>
+</bugrepository>

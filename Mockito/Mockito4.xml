@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<bugrepository name="Mockito4">
+ <bug id="187" opendate="2004-10-06 17:02:00" fixdate="2004-10-18 17:40:00">
+    <buginformation>
+      <summary>java.lang.ClassCastException: java.lang.Class cannot be cast to java.lang.String</summary>
+      <description>
+Exception throws on verifyZeroInteractions when using mock with default answer.
+checked on versions 1.10.5-2.0.5
+all ok on 1.9.5
+public class MockitoTest extends Mockito {
+    public interface TestMock {
+        public boolean m1();
+    };
+
+    @Test
+    public void test() {
+        TestMock test = mock(TestMock.class, new Answer() {
+            @Override public Object answer(InvocationOnMock invocation) throws Throwable {
+                return false;
+            }
+        });
+        test.m1();
+        verifyZeroInteractions(test);
+    }
+}
+Hi, sorry for the late reply.
+
+Thanks for the testcase, indeed we missed something there.
+
+For reference the stacktrace is :
+
+java.lang.ClassCastException: java.lang.Boolean cannot be cast to java.lang.String
+    at org.mockitousage.bugs.ClassCastExOnVerifyZeroInteractionsTest$TestMock$$EnhancerByMockitoWithCGLIB$$91d883c5.toString(&lt;generated&gt;)
+    at java.lang.String.valueOf(String.java:2847)
+    at java.lang.StringBuilder.append(StringBuilder.java:128)
+    at org.mockito.exceptions.Reporter.noMoreInteractionsWanted(Reporter.java:420)
+    at org.mockito.internal.verification.NoMoreInteractions.verify(NoMoreInteractions.java:24)
+    at org.mockito.internal.MockitoCore.verifyNoMoreInteractions(MockitoCore.java:113)
+    at org.mockito.Mockito.verifyZeroInteractions(Mockito.java:1674)
+    at org.mockitousage.bugs.ClassCastExOnVerifyZeroInteractionsTest.test(ClassCastExOnVerifyZeroInteractionsTest.java:23)
+    Actually the usage report was improved to include the mock name, however in this usage the default answer always returns false. So when the String message is generated there's a CCE because the default answer returns a boolean.
+
+On your side the workaround is to return valid values for these Object inherited methods.
+
+On mockito side there should be two possible thing to do:
+
+get the name safely without invoking toString
+validate more aggressively answer's result
+      </description>
+    </buginformation>
+    <fixedFiles>
+      <file>org.mockito.AdditionalAnswers.java</file>
+      <file>org.mockito.AdditionalMatchers.java</file>
+      <file>org.mockito.Answers.java</file>
+      <file>org.mockito.ArgumentCaptor.java</file>
+      <file>org.mockito.ArgumentMatcher.java</file>
+      <file>org.mockito.BDDMockito.java</file>
+      <file>org.mockito.Captor.java</file>
+      <file>org.mockito.configuration.AnnotationEngine.java</file>
+      <file>org.mockito.configuration.DefaultMockitoConfiguration.java</file>
+      <file>org.mockito.configuration.IMockitoConfiguration.java</file>
+      <file>org.mockito.exceptions.base.MockitoAssertionError.java</file>
+      <file>org.mockito.exceptions.base.MockitoException.java</file>
+      <file>org.mockito.exceptions.base.MockitoSerializationIssue.java</file>
+      <file>org.mockito.exceptions.Discrepancy.java</file>
+      <file>org.mockito.exceptions.misusing.CannotStubVoidMethodWithReturnValue.java</file>
+      <file>org.mockito.exceptions.misusing.CannotVerifyStubOnlyMock.java</file>
+      <file>org.mockito.exceptions.misusing.FriendlyReminderException.java</file>
+      <file>org.mockito.exceptions.misusing.InvalidUseOfMatchersException.java</file>
+      <file>org.mockito.exceptions.misusing.MissingMethodInvocationException.java</file>
+      <file>org.mockito.exceptions.misusing.MockitoConfigurationException.java</file>
+      <file>org.mockito.exceptions.misusing.NotAMockException.java</file>
+      <file>org.mockito.exceptions.misusing.NullInsteadOfMockException.java</file>
+      <file>org.mockito.exceptions.misusing.UnfinishedStubbingException.java</file>
+      <file>org.mockito.exceptions.misusing.UnfinishedVerificationException.java</file>
+      <file>org.mockito.exceptions.misusing.WrongTypeOfReturnValue.java</file>
+      <file>org.mockito.exceptions.Pluralizer.java</file>
+      <file>org.mockito.exceptions.PrintableInvocation.java</file>
+      <file>org.mockito.exceptions.Reporter.java</file>
+      <file>org.mockito.exceptions.stacktrace.StackTraceCleaner.java</file>
+      <file>org.mockito.exceptions.verification.ArgumentsAreDifferent.java</file>
+      <file>org.mockito.exceptions.verification.junit.ArgumentsAreDifferent.java</file>
+      <file>org.mockito.exceptions.verification.junit.JUnitTool.java</file>
+      <file>org.mockito.exceptions.verification.NeverWantedButInvoked.java</file>
+      <file>org.mockito.exceptions.verification.NoInteractionsWanted.java</file>
+      <file>org.mockito.exceptions.verification.SmartNullPointerException.java</file>
+      <file>org.mockito.exceptions.verification.TooLittleActualInvocations.java</file>
+      <file>org.mockito.exceptions.verification.TooManyActualInvocations.java</file>
+      <file>org.mockito.exceptions.verification.VerificationInOrderFailure.java</file>
+      <file>org.mockito.exceptions.verification.WantedButNotInvoked.java</file>
+      <file>org.mockito.Incubating.java</file>
+      <file>org.mockito.InjectMocks.java</file>
+      <file>org.mockito.InOrder.java</file>
+      <file>org.mockito.internal.configuration.CaptorAnnotationProcessor.java</file>
+      <file>org.mockito.internal.configuration.ClassPathLoader.java</file>
+      <file>org.mockito.internal.configuration.DefaultAnnotationEngine.java</file>
+      <file>org.mockito.internal.configuration.DefaultInjectionEngine.java</file>
+      <file>org.mockito.internal.configuration.FieldAnnotationProcessor.java</file>
+      <file>org.mockito.internal.configuration.GlobalConfiguration.java</file>
+      <file>org.mockito.internal.configuration.InjectingAnnotationEngine.java</file>
+      <file>org.mockito.internal.configuration.injection.ConstructorInjection.java</file>
+      <file>org.mockito.internal.configuration.injection.filter.FinalMockCandidateFilter.java</file>
+      <file>org.mockito.internal.configuration.injection.filter.MockCandidateFilter.java</file>
+      <file>org.mockito.internal.configuration.injection.filter.NameBasedCandidateFilter.java</file>
+      <file>org.mockito.internal.configuration.injection.filter.OngoingInjecter.java</file>
+      <file>org.mockito.internal.configuration.injection.filter.TypeBasedCandidateFilter.java</file>
+      <file>org.mockito.internal.configuration.injection.MockInjection.java</file>
+      <file>org.mockito.internal.configuration.injection.MockInjectionStrategy.java</file>
+      <file>org.mockito.internal.configuration.injection.PropertyAndSetterInjection.java</file>
+      <file>org.mockito.internal.configuration.injection.scanner.InjectMocksScanner.java</file>
+      <file>org.mockito.internal.configuration.injection.scanner.MockScanner.java</file>
+      <file>org.mockito.internal.configuration.injection.SpyOnInjectedFieldsHandler.java</file>
+      <file>org.mockito.internal.configuration.MockAnnotationProcessor.java</file>
+      <file>org.mockito.internal.configuration.MockitoAnnotationsMockAnnotationProcessor.java</file>
+      <file>org.mockito.internal.configuration.plugins.DefaultPluginSwitch.java</file>
+      <file>org.mockito.internal.configuration.plugins.PluginFileReader.java</file>
+      <file>org.mockito.internal.configuration.plugins.PluginFinder.java</file>
+      <file>org.mockito.internal.configuration.plugins.PluginLoader.java</file>
+      <file>org.mockito.internal.configuration.plugins.PluginRegistry.java</file>
+      <file>org.mockito.internal.configuration.plugins.Plugins.java</file>
+      <file>org.mockito.internal.configuration.SpyAnnotationEngine.java</file>
+      <file>org.mockito.internal.creation.cglib.AcrossJVMSerializationFeature.java</file>
+      <file>org.mockito.internal.creation.cglib.CGLIBHacker.java</file>
+      <file>org.mockito.internal.creation.cglib.CglibMockMaker.java</file>
+      <file>org.mockito.internal.creation.cglib.ClassImposterizer.java</file>
+      <file>org.mockito.internal.creation.cglib.DelegatingMockitoMethodProxy.java</file>
+      <file>org.mockito.internal.creation.cglib.MethodInterceptorFilter.java</file>
+      <file>org.mockito.internal.creation.cglib.MockitoNamingPolicy.java</file>
+      <file>org.mockito.internal.creation.cglib.SerializableMockitoMethodProxy.java</file>
+      <file>org.mockito.internal.creation.cglib.SerializableNoOp.java</file>
+      <file>org.mockito.internal.creation.DelegatingMethod.java</file>
+      <file>org.mockito.internal.creation.instance.ConstructorInstantiator.java</file>
+      <file>org.mockito.internal.creation.instance.InstantiationException.java</file>
+      <file>org.mockito.internal.creation.instance.Instantiator.java</file>
+      <file>org.mockito.internal.creation.instance.InstantiatorProvider.java</file>
+      <file>org.mockito.internal.creation.instance.ObjenesisInstantiator.java</file>
+      <file>org.mockito.internal.creation.MockSettingsImpl.java</file>
+      <file>org.mockito.internal.creation.settings.CreationSettings.java</file>
+      <file>org.mockito.internal.creation.util.MockitoMethodProxy.java</file>
+      <file>org.mockito.internal.creation.util.SearchingClassLoader.java</file>
+      <file>org.mockito.internal.debugging.FindingsListener.java</file>
+      <file>org.mockito.internal.debugging.Localized.java</file>
+      <file>org.mockito.internal.debugging.LocationImpl.java</file>
+      <file>org.mockito.internal.debugging.LoggingListener.java</file>
+      <file>org.mockito.internal.debugging.MockitoDebuggerImpl.java</file>
+      <file>org.mockito.internal.debugging.VerboseMockInvocationLogger.java</file>
+      <file>org.mockito.internal.debugging.WarningsCollector.java</file>
+      <file>org.mockito.internal.debugging.WarningsFinder.java</file>
+      <file>org.mockito.internal.debugging.WarningsPrinterImpl.java</file>
+      <file>org.mockito.internal.exceptions.ExceptionIncludingMockitoWarnings.java</file>
+      <file>org.mockito.internal.exceptions.MockitoLimitations.java</file>
+      <file>org.mockito.internal.exceptions.stacktrace.ConditionalStackTraceFilter.java</file>
+      <file>org.mockito.internal.exceptions.stacktrace.DefaultStackTraceCleaner.java</file>
+      <file>org.mockito.internal.exceptions.stacktrace.DefaultStackTraceCleanerProvider.java</file>
+      <file>org.mockito.internal.exceptions.stacktrace.StackTraceFilter.java</file>
+      <file>org.mockito.internal.exceptions.util.ScenarioPrinter.java</file>
+      <file>org.mockito.internal.exceptions.VerificationAwareInvocation.java</file>
+      <file>org.mockito.internal.handler.InvocationNotifierHandler.java</file>
+      <file>org.mockito.internal.handler.MockHandlerFactory.java</file>
+      <file>org.mockito.internal.handler.MockHandlerImpl.java</file>
+      <file>org.mockito.internal.handler.NullResultGuardian.java</file>
+      <file>org.mockito.internal.InOrderImpl.java</file>
+      <file>org.mockito.internal.InternalMockHandler.java</file>
+      <file>org.mockito.internal.invocation.AbstractAwareMethod.java</file>
+      <file>org.mockito.internal.invocation.ArgumentsComparator.java</file>
+      <file>org.mockito.internal.invocation.ArgumentsProcessor.java</file>
+      <file>org.mockito.internal.invocation.CapturesArgumensFromInvocation.java</file>
+      <file>org.mockito.internal.invocation.finder.AllInvocationsFinder.java</file>
+      <file>org.mockito.internal.invocation.finder.VerifiableInvocationsFinder.java</file>
+      <file>org.mockito.internal.invocation.InvocationImpl.java</file>
+      <file>org.mockito.internal.invocation.InvocationMarker.java</file>
+      <file>org.mockito.internal.invocation.InvocationMatcher.java</file>
+      <file>org.mockito.internal.invocation.InvocationsFinder.java</file>
+      <file>org.mockito.internal.invocation.MatchersBinder.java</file>
+      <file>org.mockito.internal.invocation.MockitoMethod.java</file>
+      <file>org.mockito.internal.invocation.realmethod.CleanTraceRealMethod.java</file>
+      <file>org.mockito.internal.invocation.realmethod.DefaultRealMethod.java</file>
+      <file>org.mockito.internal.invocation.realmethod.RealMethod.java</file>
+      <file>org.mockito.internal.invocation.SerializableMethod.java</file>
+      <file>org.mockito.internal.invocation.StubInfoImpl.java</file>
+      <file>org.mockito.internal.invocation.UnusedStubsFinder.java</file>
+      <file>org.mockito.internal.junit.FriendlyExceptionMaker.java</file>
+      <file>org.mockito.internal.junit.JUnitDetecter.java</file>
+      <file>org.mockito.internal.junit.JUnitRule.java</file>
+      <file>org.mockito.internal.junit.JUnitTool.java</file>
+      <file>org.mockito.internal.listeners.CollectCreatedMocks.java</file>
+      <file>org.mockito.internal.listeners.MockingProgressListener.java</file>
+      <file>org.mockito.internal.listeners.MockingStartedListener.java</file>
+      <file>org.mockito.internal.listeners.NotifiedMethodInvocationReport.java</file>
+      <file>org.mockito.internal.matchers.And.java</file>
+      <file>org.mockito.internal.matchers.Any.java</file>
+      <file>org.mockito.internal.matchers.AnyVararg.java</file>
+      <file>org.mockito.internal.matchers.apachecommons.EqualsBuilder.java</file>
+      <file>org.mockito.internal.matchers.apachecommons.ReflectionEquals.java</file>
+      <file>org.mockito.internal.matchers.ArrayEquals.java</file>
+      <file>org.mockito.internal.matchers.CapturesArguments.java</file>
+      <file>org.mockito.internal.matchers.CapturingMatcher.java</file>
+      <file>org.mockito.internal.matchers.CompareEqual.java</file>
+      <file>org.mockito.internal.matchers.CompareTo.java</file>
+      <file>org.mockito.internal.matchers.Contains.java</file>
+      <file>org.mockito.internal.matchers.ContainsExtraTypeInformation.java</file>
+      <file>org.mockito.internal.matchers.EndsWith.java</file>
+      <file>org.mockito.internal.matchers.Equality.java</file>
+      <file>org.mockito.internal.matchers.Equals.java</file>
+      <file>org.mockito.internal.matchers.EqualsWithDelta.java</file>
+      <file>org.mockito.internal.matchers.Find.java</file>
+      <file>org.mockito.internal.matchers.GreaterOrEqual.java</file>
+      <file>org.mockito.internal.matchers.GreaterThan.java</file>
+      <file>org.mockito.internal.matchers.InstanceOf.java</file>
+      <file>org.mockito.internal.matchers.LessOrEqual.java</file>
+      <file>org.mockito.internal.matchers.LessThan.java</file>
+      <file>org.mockito.internal.matchers.LocalizedMatcher.java</file>
+      <file>org.mockito.internal.matchers.MatcherDecorator.java</file>
+      <file>org.mockito.internal.matchers.MatchersPrinter.java</file>
+      <file>org.mockito.internal.matchers.Matches.java</file>
+      <file>org.mockito.internal.matchers.Not.java</file>
+      <file>org.mockito.internal.matchers.NotNull.java</file>
+      <file>org.mockito.internal.matchers.Null.java</file>
+      <file>org.mockito.internal.matchers.Or.java</file>
+      <file>org.mockito.internal.matchers.Same.java</file>
+      <file>org.mockito.internal.matchers.StartsWith.java</file>
+      <file>org.mockito.internal.matchers.VarargCapturingMatcher.java</file>
+      <file>org.mockito.internal.matchers.VarargMatcher.java</file>
+      <file>org.mockito.internal.MockitoCore.java</file>
+      <file>org.mockito.internal.progress.ArgumentMatcherStorage.java</file>
+      <file>org.mockito.internal.progress.ArgumentMatcherStorageImpl.java</file>
+      <file>org.mockito.internal.progress.HandyReturnValues.java</file>
+      <file>org.mockito.internal.progress.IOngoingStubbing.java</file>
+      <file>org.mockito.internal.progress.MockingProgress.java</file>
+      <file>org.mockito.internal.progress.MockingProgressImpl.java</file>
+      <file>org.mockito.internal.progress.SequenceNumber.java</file>
+      <file>org.mockito.internal.progress.ThreadSafeMockingProgress.java</file>
+      <file>org.mockito.internal.reporting.Discrepancy.java</file>
+      <file>org.mockito.internal.reporting.Pluralizer.java</file>
+      <file>org.mockito.internal.reporting.PrintSettings.java</file>
+      <file>org.mockito.internal.reporting.SmartPrinter.java</file>
+      <file>org.mockito.internal.runners.JUnit44RunnerImpl.java</file>
+      <file>org.mockito.internal.runners.JUnit45AndHigherRunnerImpl.java</file>
+      <file>org.mockito.internal.runners.RunnerFactory.java</file>
+      <file>org.mockito.internal.runners.RunnerImpl.java</file>
+      <file>org.mockito.internal.runners.util.FrameworkUsageValidator.java</file>
+      <file>org.mockito.internal.runners.util.RunnerProvider.java</file>
+      <file>org.mockito.internal.runners.util.TestMethodsFinder.java</file>
+      <file>org.mockito.internal.stubbing.answers.AnswerReturnValuesAdapter.java</file>
+      <file>org.mockito.internal.stubbing.answers.AnswersValidator.java</file>
+      <file>org.mockito.internal.stubbing.answers.CallsRealMethods.java</file>
+      <file>org.mockito.internal.stubbing.answers.ClonesArguments.java</file>
+      <file>org.mockito.internal.stubbing.answers.DoesNothing.java</file>
+      <file>org.mockito.internal.stubbing.answers.MethodInfo.java</file>
+      <file>org.mockito.internal.stubbing.answers.Returns.java</file>
+      <file>org.mockito.internal.stubbing.answers.ReturnsArgumentAt.java</file>
+      <file>org.mockito.internal.stubbing.answers.ReturnsElementsOf.java</file>
+      <file>org.mockito.internal.stubbing.answers.ThrowsException.java</file>
+      <file>org.mockito.internal.stubbing.answers.ThrowsExceptionClass.java</file>
+      <file>org.mockito.internal.stubbing.BaseStubbing.java</file>
+      <file>org.mockito.internal.stubbing.ConsecutiveStubbing.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.Answers.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.ForwardsInvocations.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.GloballyConfiguredAnswer.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.ReturnsDeepStubs.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.ReturnsEmptyValues.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.ReturnsMocks.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.ReturnsMoreEmptyValues.java</file>
+      <file>org.mockito.internal.stubbing.defaultanswers.ReturnsSmartNulls.java</file>
+      <file>org.mockito.internal.stubbing.InvocationContainer.java</file>
+      <file>org.mockito.internal.stubbing.InvocationContainerImpl.java</file>
+      <file>org.mockito.internal.stubbing.OngoingStubbingImpl.java</file>
+      <file>org.mockito.internal.stubbing.StubbedInvocationMatcher.java</file>
+      <file>org.mockito.internal.stubbing.StubberImpl.java</file>
+      <file>org.mockito.internal.stubbing.VoidMethodStubbableImpl.java</file>
+      <file>org.mockito.internal.util.Checks.java</file>
+      <file>org.mockito.internal.util.collections.ArrayUtils.java</file>
+      <file>org.mockito.internal.util.collections.HashCodeAndEqualsMockWrapper.java</file>
+      <file>org.mockito.internal.util.collections.HashCodeAndEqualsSafeSet.java</file>
+      <file>org.mockito.internal.util.collections.IdentitySet.java</file>
+      <file>org.mockito.internal.util.collections.Iterables.java</file>
+      <file>org.mockito.internal.util.collections.ListUtil.java</file>
+      <file>org.mockito.internal.util.collections.Sets.java</file>
+      <file>org.mockito.internal.util.ConsoleMockitoLogger.java</file>
+      <file>org.mockito.internal.util.Decamelizer.java</file>
+      <file>org.mockito.internal.util.DefaultMockingDetails.java</file>
+      <file>org.mockito.internal.util.io.IOUtil.java</file>
+      <file>org.mockito.internal.util.junit.JUnitFailureHacker.java</file>
+      <file>org.mockito.internal.util.MockCreationValidator.java</file>
+      <file>org.mockito.internal.util.MockitoLogger.java</file>
+      <file>org.mockito.internal.util.MockNameImpl.java</file>
+      <file>org.mockito.internal.util.MockUtil.java</file>
+      <file>org.mockito.internal.util.ObjectMethodsGuru.java</file>
+      <file>org.mockito.internal.util.Primitives.java</file>
+      <file>org.mockito.internal.util.reflection.AccessibilityChanger.java</file>
+      <file>org.mockito.internal.util.reflection.BeanPropertySetter.java</file>
+      <file>org.mockito.internal.util.reflection.Constructors.java</file>
+      <file>org.mockito.internal.util.reflection.FieldCopier.java</file>
+      <file>org.mockito.internal.util.reflection.FieldInitializationReport.java</file>
+      <file>org.mockito.internal.util.reflection.FieldInitializer.java</file>
+      <file>org.mockito.internal.util.reflection.FieldReader.java</file>
+      <file>org.mockito.internal.util.reflection.Fields.java</file>
+      <file>org.mockito.internal.util.reflection.FieldSetter.java</file>
+      <file>org.mockito.internal.util.reflection.GenericMaster.java</file>
+      <file>org.mockito.internal.util.reflection.GenericMetadataSupport.java</file>
+      <file>org.mockito.internal.util.reflection.InstanceField.java</file>
+      <file>org.mockito.internal.util.reflection.LenientCopyTool.java</file>
+      <file>org.mockito.internal.util.reflection.SuperTypesLastSorter.java</file>
+      <file>org.mockito.internal.util.reflection.Whitebox.java</file>
+      <file>org.mockito.internal.util.RemoveFirstLine.java</file>
+      <file>org.mockito.internal.util.SimpleMockitoLogger.java</file>
+      <file>org.mockito.internal.util.StringJoiner.java</file>
+      <file>org.mockito.internal.util.Timer.java</file>
+      <file>org.mockito.internal.verification.api.InOrderContext.java</file>
+      <file>org.mockito.internal.verification.api.VerificationData.java</file>
+      <file>org.mockito.internal.verification.api.VerificationDataInOrder.java</file>
+      <file>org.mockito.internal.verification.api.VerificationDataInOrderImpl.java</file>
+      <file>org.mockito.internal.verification.api.VerificationInOrderMode.java</file>
+      <file>org.mockito.internal.verification.argumentmatching.ArgumentMatchingTool.java</file>
+      <file>org.mockito.internal.verification.AtLeast.java</file>
+      <file>org.mockito.internal.verification.AtMost.java</file>
+      <file>org.mockito.internal.verification.Calls.java</file>
+      <file>org.mockito.internal.verification.checkers.AtLeastDiscrepancy.java</file>
+      <file>org.mockito.internal.verification.checkers.AtLeastXNumberOfInvocationsChecker.java</file>
+      <file>org.mockito.internal.verification.checkers.AtLeastXNumberOfInvocationsInOrderChecker.java</file>
+      <file>org.mockito.internal.verification.checkers.MissingInvocationChecker.java</file>
+      <file>org.mockito.internal.verification.checkers.MissingInvocationInOrderChecker.java</file>
+      <file>org.mockito.internal.verification.checkers.NonGreedyNumberOfInvocationsInOrderChecker.java</file>
+      <file>org.mockito.internal.verification.checkers.NumberOfInvocationsChecker.java</file>
+      <file>org.mockito.internal.verification.checkers.NumberOfInvocationsInOrderChecker.java</file>
+      <file>org.mockito.internal.verification.DefaultRegisteredInvocations.java</file>
+      <file>org.mockito.internal.verification.InOrderContextImpl.java</file>
+      <file>org.mockito.internal.verification.InOrderWrapper.java</file>
+      <file>org.mockito.internal.verification.MockAwareVerificationMode.java</file>
+      <file>org.mockito.internal.verification.NoMoreInteractions.java</file>
+      <file>org.mockito.internal.verification.Only.java</file>
+      <file>org.mockito.internal.verification.RegisteredInvocations.java</file>
+      <file>org.mockito.internal.verification.SingleRegisteredInvocation.java</file>
+      <file>org.mockito.internal.verification.Times.java</file>
+      <file>org.mockito.internal.verification.VerificationDataImpl.java</file>
+      <file>org.mockito.internal.verification.VerificationModeFactory.java</file>
+      <file>org.mockito.internal.verification.VerificationOverTimeImpl.java</file>
+      <file>org.mockito.invocation.DescribedInvocation.java</file>
+      <file>org.mockito.invocation.Invocation.java</file>
+      <file>org.mockito.invocation.InvocationOnMock.java</file>
+      <file>org.mockito.invocation.Location.java</file>
+      <file>org.mockito.invocation.MockHandler.java</file>
+      <file>org.mockito.invocation.StubInfo.java</file>
+      <file>org.mockito.junit.MockitoJUnit.java</file>
+      <file>org.mockito.junit.MockitoJUnitRule.java</file>
+      <file>org.mockito.junit.MockitoRule.java</file>
+      <file>org.mockito.listeners.InvocationListener.java</file>
+      <file>org.mockito.listeners.MethodInvocationReport.java</file>
+      <file>org.mockito.Matchers.java</file>
+      <file>org.mockito.mock.MockCreationSettings.java</file>
+      <file>org.mockito.mock.MockName.java</file>
+      <file>org.mockito.mock.SerializableMode.java</file>
+      <file>org.mockito.Mock.java</file>
+      <file>org.mockito.MockingDetails.java</file>
+      <file>org.mockito.Mockito.java</file>
+      <file>org.mockito.MockitoAnnotations.java</file>
+      <file>org.mockito.MockitoDebugger.java</file>
+      <file>org.mockito.MockSettings.java</file>
+      <file>org.mockito.plugins.MockMaker.java</file>
+      <file>org.mockito.plugins.PluginSwitch.java</file>
+      <file>org.mockito.plugins.StackTraceCleanerProvider.java</file>
+      <file>org.mockito.ReturnValues.java</file>
+      <file>org.mockito.runners.ConsoleSpammingMockitoJUnitRunner.java</file>
+      <file>org.mockito.runners.MockitoJUnit44Runner.java</file>
+      <file>org.mockito.runners.MockitoJUnitRunner.java</file>
+      <file>org.mockito.runners.VerboseMockitoJUnitRunner.java</file>
+      <file>org.mockito.Spy.java</file>
+      <file>org.mockito.stubbing.Answer.java</file>
+      <file>org.mockito.stubbing.answers.ReturnsElementsOf.java</file>
+      <file>org.mockito.stubbing.DeprecatedOngoingStubbing.java</file>
+      <file>org.mockito.stubbing.OngoingStubbing.java</file>
+      <file>org.mockito.stubbing.Stubber.java</file>
+      <file>org.mockito.stubbing.VoidMethodStubbable.java</file>
+      <file>org.mockito.verification.After.java</file>
+      <file>org.mockito.verification.Timeout.java</file>
+      <file>org.mockito.verification.VerificationAfterDelay.java</file>
+      <file>org.mockito.verification.VerificationMode.java</file>
+      <file>org.mockito.verification.VerificationWithTimeout.java</file>
+      <file>org.mockito.verification.VerificationWrapper.java</file>
+    </fixedFiles>
+  </bug>
+</bugrepository>

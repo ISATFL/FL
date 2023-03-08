@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<bugrepository name="Closure95">
+ <bug id="66" opendate="2004-10-06 17:02:00" fixdate="2004-10-18 17:40:00">
+    <buginformation>
+      <summary>Use @public tag to prevent compression of symbol names</summary>
+      <description>
+Given this input code:
+
+	Glow = {};
+	/** @public */ Glow.versions = [1,2,3];
+	Glow.showVersions = function() { alert(Glow.versions); }
+	
+	// exports
+	window['Glow'] = Glow;
+	Glow['versions'] = Glow.versions;
+	Glow['showVersions'] = Glow.showVersions;
+
+The compiler (with ADVANCED_OPTIMIZATIONS on) will produce the following
+output code:
+
+	Glow = {};
+	Glow.a = [1, 2, 3];
+	Glow.b = function() { alert(Glow.a) };
+	window.Glow = Glow;
+	Glow.versions = Glow.a;
+	Glow.showVersions = Glow.b
+
+From outside the Glow library, a user may do the following (in their own,
+uncompressed code):
+
+	Glow.versions = [4,5,6];
+	Glow.showVersions();
+
+Only in the compiled code will the user-code produces &quot;1,2,3&quot; instead of
+the expected &quot;4,5,6&quot;. This is because the compiler renamed the reference to
+[1,2,3] in `showVersions()` to &quot;Glow.a&quot;, whilst the user assigned a new
+array to &quot;Glow.versions&quot;, and therefore the two different names now refer
+to two different arrays.
+
+I can avoid this by using the stringy-name to refer to Glow[&quot;versions&quot;],
+but I would then have to do that everywhere in my code which is a annoying
+and bug-prone (if I or someone else should ever forget). I'd prefer to tell
+the compiler once about my wish to have a property name left uncompresed,
+rather than relying on a side effect (the fact that the compiler won't
+compress stringy-named properties) and then having to invoke that
+side-effect consistently everywhere.
+
+Instead I'm requesting that when the compiler sees a property is marked by
+the author as @public it should then leave that name uncompressed everywhere.
+
+So, given the input code above, the desired output would be:
+
+	Glow = {};
+	Glow.versions = [1, 2, 3];
+	Glow.b = function() { alert(Glow.versions) };
+	window.Glow = Glow;
+	Glow.versions = Glow.versions; // not needed now
+	Glow.showVersions = Glow.b
+
+I'm not fixed on a particular tag, but @public seems an obvious choice, and
+I'd prefer to use tags that already exist in JsDoc Toolkit.
+
+Note that my proposed feature is different than the `@export Glow.versions`
+tag proposal, as that tag would merely be a shortcut for &quot;Glow['versions']
+= Glow.versions;&quot;, which, as I've shown above, doesn't solve this problem.
+The work-around is to use a setter:
+
+Glow.setVersions(acceptedVersions) {
+  Glow.versions = acceptedVersions; 
+}
+
+window['Glow']['setVersions'] = Glow.setVersions;Adding setters (and getters) for every property we want to expose is *a* workaround, but it's hardly better 
+than referring to them with strings internally; I'd say it's worse actually because it alters our public API 
+and makes everything slower in the process. I appreciate the suggestion but it was one we already 
+considered and rejected.Perhaps another potential workaround is to compile with an "externs" file telling the 
+compiler that Glow.versions should never be touched:
+
+[root@pal iplayer-utils]# cat glow2.js
+Glow.versions = [4,5,6];
+Glow.showVersions();
+[root@pal iplayer-utils]# java -jar lib/compiler.jar --compilation_level 
+ADVANCED_OPTIMIZATIONS --formatting PRETTY_PRINT --js glow2.js
+Glow.b = [4, 5, 6];
+Glow.a();
+[root@pal iplayer-utils]# cat e.js
+var Glow = { versions: null, showVersions: null };
+[root@pal iplayer-utils]# java -jar lib/compiler.jar --compilation_level 
+ADVANCED_OPTIMIZATIONS --externs e.js --formatting PRETTY_PRINT --js glow2.js
+Glow.versions = [4, 5, 6];
+Glow.showVersions();I second this feature request and for me it is the most crucial feature enhancement I
+can currently think of. The lack of a @public annotation currently prevents me from
+using advanced optimizations at all because using stringy-named properties everywhere
+isn't an option because it makes the code much less readable.
+
+@micmath: Setters are NOT an option because then you have the same problem with the
+setters. The compiler creates an alias for the setter. This alias is used internally.
+When you do some inheritance now and override the setter then third-party code is
+using the new setter but internally the old setter is still used (because the alias
+is used). And that's bad for class inheritance.
+
+@ithinkihaveacat: Using externs is not working because the compiler complains about
+redefined stuff when the externs file has the same stuff in it as the source code to
+be compiled. Maybe this was working with an earlier version of the Closure
+Compiler... And I think it is not correct anyway to define "local" stuff in an
+externs file.
+
+I recommend implementing two annotations:
+
+1. @public annotation to mark symbols so they are NOT aliased at all. So this is the
+same as using stringy-named properties everywhere. By the way: @protected symbols
+must also not be aliased because third-party code may want to extend the method. Only
+@private symbols can always be aliased.
+
+2. @final annotation to mark symbols as final. This means that the compiler is
+allowed to create an alias for a symbol which is defined @public or @protected
+because it is not allowed to override this property anyway, so the alias is always
+stable.
+Comment deleted"@public" would never apply to functions within a closure as they are not accessible.  You are asking for something different.  The compiler has a capability (not currently exposed in the command-line) to name anonymous functions so that:
+
+ _.Bar = function() {}
+
+becomes something like:
+
+ _.Bar = function $_Bar$() {}
+
+For more complete stack traces.Just to exemplify a clear need for it, we're looking to use Closure Compiler for CKEditor. CKEditor exposes an extensive "public" API, partially (!) documented here:
+http://docs.cksource.com/ckeditor_api/
+
+We would love to use the advanced mode, but considering that every publicly accessible name is aliased, we're forced to use the simple mode.
+
+The following is the original code and the compiled code in advanced mode:
+http://nightly.ckeditor.com/latest/ckeditor/ckeditor.js
+http://closure-compiler.appspot.com/code/jsc29454f1b2fef93e2ea5ef525d3201d9b/default.js
+
+At the very start of the code you can find the following:
+if(!window.CKEDITOR)window.CKEDITOR=...
+
+... which is compiled to:
+if(!window.lj)window.lj=
+
+... and the same for all CKEDITOR properties and methods.
+
+I think that the simple rule that everything that is publicly accessible should remain untouched is already a very good start for it. Then it's up to the developer to apply other tags to identify stuff that can be freely aliased.
+This is implemented as @expose
+https://developers.google.com/closure/compiler/docs/js-for-compiler
+
+      </description>
+    </buginformation>
+    <fixedFiles>
+      <file>com.google.javascript.jscomp.AbstractCommandLineRunner.java</file>
+      <file>com.google.javascript.jscomp.AbstractCompiler.java</file>
+      <file>com.google.javascript.jscomp.AbstractMessageFormatter.java</file>
+      <file>com.google.javascript.jscomp.AbstractPeepholeOptimization.java</file>
+      <file>com.google.javascript.jscomp.AliasExternals.java</file>
+      <file>com.google.javascript.jscomp.AliasKeywords.java</file>
+      <file>com.google.javascript.jscomp.AliasStrings.java</file>
+      <file>com.google.javascript.jscomp.AmbiguateProperties.java</file>
+      <file>com.google.javascript.jscomp.AnalyzeNameReferences.java</file>
+      <file>com.google.javascript.jscomp.AnalyzePrototypeProperties.java</file>
+      <file>com.google.javascript.jscomp.AnonymousFunctionNamingCallback.java</file>
+      <file>com.google.javascript.jscomp.AnonymousFunctionNamingPolicy.java</file>
+      <file>com.google.javascript.jscomp.ant.AntErrorManager.java</file>
+      <file>com.google.javascript.jscomp.ant.CompileTask.java</file>
+      <file>com.google.javascript.jscomp.AstChangeProxy.java</file>
+      <file>com.google.javascript.jscomp.AstParallelizer.java</file>
+      <file>com.google.javascript.jscomp.BasicErrorManager.java</file>
+      <file>com.google.javascript.jscomp.CallGraph.java</file>
+      <file>com.google.javascript.jscomp.ChainableReverseAbstractInterpreter.java</file>
+      <file>com.google.javascript.jscomp.ChainCalls.java</file>
+      <file>com.google.javascript.jscomp.CheckAccessControls.java</file>
+      <file>com.google.javascript.jscomp.CheckAccidentalSemicolon.java</file>
+      <file>com.google.javascript.jscomp.CheckGlobalNames.java</file>
+      <file>com.google.javascript.jscomp.CheckGlobalThis.java</file>
+      <file>com.google.javascript.jscomp.CheckLevel.java</file>
+      <file>com.google.javascript.jscomp.CheckLevelLegacy.java</file>
+      <file>com.google.javascript.jscomp.CheckMissingGetCssName.java</file>
+      <file>com.google.javascript.jscomp.CheckMissingReturn.java</file>
+      <file>com.google.javascript.jscomp.CheckPathsBetweenNodes.java</file>
+      <file>com.google.javascript.jscomp.CheckProvides.java</file>
+      <file>com.google.javascript.jscomp.CheckRegExp.java</file>
+      <file>com.google.javascript.jscomp.CheckRequiresForConstructors.java</file>
+      <file>com.google.javascript.jscomp.CheckSideEffects.java</file>
+      <file>com.google.javascript.jscomp.CheckUnreachableCode.java</file>
+      <file>com.google.javascript.jscomp.ClosureCodeRemoval.java</file>
+      <file>com.google.javascript.jscomp.ClosureCodingConvention.java</file>
+      <file>com.google.javascript.jscomp.ClosureReverseAbstractInterpreter.java</file>
+      <file>com.google.javascript.jscomp.CoalesceVariableNames.java</file>
+      <file>com.google.javascript.jscomp.CodeChangeHandler.java</file>
+      <file>com.google.javascript.jscomp.CodeConsumer.java</file>
+      <file>com.google.javascript.jscomp.CodeGenerator.java</file>
+      <file>com.google.javascript.jscomp.CodePrinter.java</file>
+      <file>com.google.javascript.jscomp.CodingConvention.java</file>
+      <file>com.google.javascript.jscomp.CollapseAnonymousFunctions.java</file>
+      <file>com.google.javascript.jscomp.CollapseProperties.java</file>
+      <file>com.google.javascript.jscomp.CollapseVariableDeclarations.java</file>
+      <file>com.google.javascript.jscomp.CombinedCompilerPass.java</file>
+      <file>com.google.javascript.jscomp.CommandLineRunner.java</file>
+      <file>com.google.javascript.jscomp.CompilationLevel.java</file>
+      <file>com.google.javascript.jscomp.Compiler.java</file>
+      <file>com.google.javascript.jscomp.CompilerInput.java</file>
+      <file>com.google.javascript.jscomp.CompilerOptions.java</file>
+      <file>com.google.javascript.jscomp.CompilerPass.java</file>
+      <file>com.google.javascript.jscomp.ComposeWarningsGuard.java</file>
+      <file>com.google.javascript.jscomp.ConcreteType.java</file>
+      <file>com.google.javascript.jscomp.ConstCheck.java</file>
+      <file>com.google.javascript.jscomp.ControlFlowAnalysis.java</file>
+      <file>com.google.javascript.jscomp.ControlFlowGraph.java</file>
+      <file>com.google.javascript.jscomp.ControlStructureCheck.java</file>
+      <file>com.google.javascript.jscomp.ConvertToDottedProperties.java</file>
+      <file>com.google.javascript.jscomp.CreateSyntheticBlocks.java</file>
+      <file>com.google.javascript.jscomp.CrossModuleCodeMotion.java</file>
+      <file>com.google.javascript.jscomp.CrossModuleMethodMotion.java</file>
+      <file>com.google.javascript.jscomp.CssRenamingMap.java</file>
+      <file>com.google.javascript.jscomp.CustomPassExecutionTime.java</file>
+      <file>com.google.javascript.jscomp.DataFlowAnalysis.java</file>
+      <file>com.google.javascript.jscomp.DeadAssignmentsElimination.java</file>
+      <file>com.google.javascript.jscomp.DefaultCodingConvention.java</file>
+      <file>com.google.javascript.jscomp.DefaultPassConfig.java</file>
+      <file>com.google.javascript.jscomp.DefinitionProvider.java</file>
+      <file>com.google.javascript.jscomp.DefinitionSite.java</file>
+      <file>com.google.javascript.jscomp.DefinitionsRemover.java</file>
+      <file>com.google.javascript.jscomp.Denormalize.java</file>
+      <file>com.google.javascript.jscomp.deps.DependencyInfo.java</file>
+      <file>com.google.javascript.jscomp.deps.DepsFileParser.java</file>
+      <file>com.google.javascript.jscomp.deps.JsFileLineParser.java</file>
+      <file>com.google.javascript.jscomp.deps.JsFileParser.java</file>
+      <file>com.google.javascript.jscomp.deps.SimpleDependencyInfo.java</file>
+      <file>com.google.javascript.jscomp.deps.SortedDependencies.java</file>
+      <file>com.google.javascript.jscomp.DevirtualizePrototypeMethods.java</file>
+      <file>com.google.javascript.jscomp.DiagnosticGroup.java</file>
+      <file>com.google.javascript.jscomp.DiagnosticGroups.java</file>
+      <file>com.google.javascript.jscomp.DiagnosticGroupWarningsGuard.java</file>
+      <file>com.google.javascript.jscomp.DiagnosticType.java</file>
+      <file>com.google.javascript.jscomp.DisambiguateProperties.java</file>
+      <file>com.google.javascript.jscomp.DotFormatter.java</file>
+      <file>com.google.javascript.jscomp.ErrorFormat.java</file>
+      <file>com.google.javascript.jscomp.ErrorManager.java</file>
+      <file>com.google.javascript.jscomp.ErrorPass.java</file>
+      <file>com.google.javascript.jscomp.ExportTestFunctions.java</file>
+      <file>com.google.javascript.jscomp.ExpressionDecomposer.java</file>
+      <file>com.google.javascript.jscomp.ExternExportsPass.java</file>
+      <file>com.google.javascript.jscomp.ExtractPrototypeMemberDeclarations.java</file>
+      <file>com.google.javascript.jscomp.FindExportableNodes.java</file>
+      <file>com.google.javascript.jscomp.FlowScope.java</file>
+      <file>com.google.javascript.jscomp.FlowSensitiveInlineVariables.java</file>
+      <file>com.google.javascript.jscomp.FunctionArgumentInjector.java</file>
+      <file>com.google.javascript.jscomp.FunctionInjector.java</file>
+      <file>com.google.javascript.jscomp.FunctionNames.java</file>
+      <file>com.google.javascript.jscomp.FunctionRewriter.java</file>
+      <file>com.google.javascript.jscomp.FunctionToBlockMutator.java</file>
+      <file>com.google.javascript.jscomp.FunctionTypeBuilder.java</file>
+      <file>com.google.javascript.jscomp.GatherRawExports.java</file>
+      <file>com.google.javascript.jscomp.GatherSideEffectSubexpressionsCallback.java</file>
+      <file>com.google.javascript.jscomp.GenerateExports.java</file>
+      <file>com.google.javascript.jscomp.GlobalNamespace.java</file>
+      <file>com.google.javascript.jscomp.GoogleCodingConvention.java</file>
+      <file>com.google.javascript.jscomp.graph.AdjacencyGraph.java</file>
+      <file>com.google.javascript.jscomp.graph.Annotatable.java</file>
+      <file>com.google.javascript.jscomp.graph.Annotation.java</file>
+      <file>com.google.javascript.jscomp.graph.DiGraph.java</file>
+      <file>com.google.javascript.jscomp.graph.FixedPointGraphTraversal.java</file>
+      <file>com.google.javascript.jscomp.graph.Graph.java</file>
+      <file>com.google.javascript.jscomp.graph.GraphColoring.java</file>
+      <file>com.google.javascript.jscomp.graph.GraphNode.java</file>
+      <file>com.google.javascript.jscomp.graph.GraphReachability.java</file>
+      <file>com.google.javascript.jscomp.graph.GraphvizGraph.java</file>
+      <file>com.google.javascript.jscomp.graph.LinkedDirectedGraph.java</file>
+      <file>com.google.javascript.jscomp.graph.LinkedUndirectedGraph.java</file>
+      <file>com.google.javascript.jscomp.graph.StandardUnionFind.java</file>
+      <file>com.google.javascript.jscomp.graph.SubGraph.java</file>
+      <file>com.google.javascript.jscomp.graph.UndiGraph.java</file>
+      <file>com.google.javascript.jscomp.graph.UnionFind.java</file>
+      <file>com.google.javascript.jscomp.GroupVariableDeclarations.java</file>
+      <file>com.google.javascript.jscomp.IgnoreCajaProperties.java</file>
+      <file>com.google.javascript.jscomp.InferJSDocInfo.java</file>
+      <file>com.google.javascript.jscomp.InlineCostEstimator.java</file>
+      <file>com.google.javascript.jscomp.InlineFunctions.java</file>
+      <file>com.google.javascript.jscomp.InlineGetters.java</file>
+      <file>com.google.javascript.jscomp.InlineVariables.java</file>
+      <file>com.google.javascript.jscomp.InstrumentFunctions.java</file>
+      <file>com.google.javascript.jscomp.InvocationsCallback.java</file>
+      <file>com.google.javascript.jscomp.JoinOp.java</file>
+      <file>com.google.javascript.jscomp.JsAst.java</file>
+      <file>com.google.javascript.jscomp.JSError.java</file>
+      <file>com.google.javascript.jscomp.JsMessage.java</file>
+      <file>com.google.javascript.jscomp.JsMessageDefinition.java</file>
+      <file>com.google.javascript.jscomp.JsMessageExtractor.java</file>
+      <file>com.google.javascript.jscomp.JsMessageVisitor.java</file>
+      <file>com.google.javascript.jscomp.JSModule.java</file>
+      <file>com.google.javascript.jscomp.JSModuleGraph.java</file>
+      <file>com.google.javascript.jscomp.JSSourceFile.java</file>
+      <file>com.google.javascript.jscomp.LatticeElement.java</file>
+      <file>com.google.javascript.jscomp.LightweightMessageFormatter.java</file>
+      <file>com.google.javascript.jscomp.LineNumberCheck.java</file>
+      <file>com.google.javascript.jscomp.LinkedFlowScope.java</file>
+      <file>com.google.javascript.jscomp.LiveVariablesAnalysis.java</file>
+      <file>com.google.javascript.jscomp.LocaleUtil.java</file>
+      <file>com.google.javascript.jscomp.LoggerErrorManager.java</file>
+      <file>com.google.javascript.jscomp.MakeDeclaredNamesUnique.java</file>
+      <file>com.google.javascript.jscomp.MarkNoSideEffectCalls.java</file>
+      <file>com.google.javascript.jscomp.MaybeReachingVariableUse.java</file>
+      <file>com.google.javascript.jscomp.MemoizedScopeCreator.java</file>
+      <file>com.google.javascript.jscomp.MessageBundle.java</file>
+      <file>com.google.javascript.jscomp.MessageFormatter.java</file>
+      <file>com.google.javascript.jscomp.MethodCompilerPass.java</file>
+      <file>com.google.javascript.jscomp.MinimizeExitPoints.java</file>
+      <file>com.google.javascript.jscomp.MoveFunctionDeclarations.java</file>
+      <file>com.google.javascript.jscomp.MustBeReachingVariableDef.java</file>
+      <file>com.google.javascript.jscomp.NameAnalyzer.java</file>
+      <file>com.google.javascript.jscomp.NameAnonymousFunctions.java</file>
+      <file>com.google.javascript.jscomp.NameAnonymousFunctionsMapped.java</file>
+      <file>com.google.javascript.jscomp.NameGenerator.java</file>
+      <file>com.google.javascript.jscomp.NameReferenceGraph.java</file>
+      <file>com.google.javascript.jscomp.NameReferenceGraphConstruction.java</file>
+      <file>com.google.javascript.jscomp.NameReferenceGraphReport.java</file>
+      <file>com.google.javascript.jscomp.NodeIterators.java</file>
+      <file>com.google.javascript.jscomp.NodeNameExtractor.java</file>
+      <file>com.google.javascript.jscomp.NodeTraversal.java</file>
+      <file>com.google.javascript.jscomp.NodeUtil.java</file>
+      <file>com.google.javascript.jscomp.Normalize.java</file>
+      <file>com.google.javascript.jscomp.ObjectPropertyStringPostprocess.java</file>
+      <file>com.google.javascript.jscomp.ObjectPropertyStringPreprocess.java</file>
+      <file>com.google.javascript.jscomp.OptimizeArgumentsArray.java</file>
+      <file>com.google.javascript.jscomp.OptimizeParameters.java</file>
+      <file>com.google.javascript.jscomp.ParallelCompilerPass.java</file>
+      <file>com.google.javascript.jscomp.parsing.Annotation.java</file>
+      <file>com.google.javascript.jscomp.parsing.Config.java</file>
+      <file>com.google.javascript.jscomp.parsing.IRFactory.java</file>
+      <file>com.google.javascript.jscomp.parsing.JsDocInfoParser.java</file>
+      <file>com.google.javascript.jscomp.parsing.JsDocToken.java</file>
+      <file>com.google.javascript.jscomp.parsing.JsDocTokenStream.java</file>
+      <file>com.google.javascript.jscomp.parsing.NullErrorReporter.java</file>
+      <file>com.google.javascript.jscomp.parsing.ParserRunner.java</file>
+      <file>com.google.javascript.jscomp.parsing.TypeSafeDispatcher.java</file>
+      <file>com.google.javascript.jscomp.PassConfig.java</file>
+      <file>com.google.javascript.jscomp.PassFactory.java</file>
+      <file>com.google.javascript.jscomp.PeepholeFoldConstants.java</file>
+      <file>com.google.javascript.jscomp.PeepholeFoldWithTypes.java</file>
+      <file>com.google.javascript.jscomp.PeepholeOptimizationsPass.java</file>
+      <file>com.google.javascript.jscomp.PeepholeRemoveDeadCode.java</file>
+      <file>com.google.javascript.jscomp.PeepholeSubstituteAlternateSyntax.java</file>
+      <file>com.google.javascript.jscomp.PerformanceTracker.java</file>
+      <file>com.google.javascript.jscomp.PhaseOptimizer.java</file>
+      <file>com.google.javascript.jscomp.Position.java</file>
+      <file>com.google.javascript.jscomp.PrepareAst.java</file>
+      <file>com.google.javascript.jscomp.PrintStreamErrorManager.java</file>
+      <file>com.google.javascript.jscomp.ProcessClosurePrimitives.java</file>
+      <file>com.google.javascript.jscomp.ProcessDefines.java</file>
+      <file>com.google.javascript.jscomp.PropertyRenamingPolicy.java</file>
+      <file>com.google.javascript.jscomp.PureFunctionIdentifier.java</file>
+      <file>com.google.javascript.jscomp.RecordFunctionInformation.java</file>
+      <file>com.google.javascript.jscomp.ReferenceCollectingCallback.java</file>
+      <file>com.google.javascript.jscomp.Region.java</file>
+      <file>com.google.javascript.jscomp.RemoveConstantExpressions.java</file>
+      <file>com.google.javascript.jscomp.RemoveConstantExpressionsParallel.java</file>
+      <file>com.google.javascript.jscomp.RemoveTryCatch.java</file>
+      <file>com.google.javascript.jscomp.RemoveUnusedNames.java</file>
+      <file>com.google.javascript.jscomp.RemoveUnusedPrototypeProperties.java</file>
+      <file>com.google.javascript.jscomp.RemoveUnusedVars.java</file>
+      <file>com.google.javascript.jscomp.RenameLabels.java</file>
+      <file>com.google.javascript.jscomp.RenameProperties.java</file>
+      <file>com.google.javascript.jscomp.RenamePrototypes.java</file>
+      <file>com.google.javascript.jscomp.RenameVars.java</file>
+      <file>com.google.javascript.jscomp.ReplaceCssNames.java</file>
+      <file>com.google.javascript.jscomp.ReplaceIdGenerators.java</file>
+      <file>com.google.javascript.jscomp.ReplaceMessages.java</file>
+      <file>com.google.javascript.jscomp.ReplaceStrings.java</file>
+      <file>com.google.javascript.jscomp.Result.java</file>
+      <file>com.google.javascript.jscomp.ReverseAbstractInterpreter.java</file>
+      <file>com.google.javascript.jscomp.RhinoErrorReporter.java</file>
+      <file>com.google.javascript.jscomp.RuntimeTypeCheck.java</file>
+      <file>com.google.javascript.jscomp.SanityCheck.java</file>
+      <file>com.google.javascript.jscomp.Scope.java</file>
+      <file>com.google.javascript.jscomp.ScopeCreator.java</file>
+      <file>com.google.javascript.jscomp.ScopedAliases.java</file>
+      <file>com.google.javascript.jscomp.SemanticReverseAbstractInterpreter.java</file>
+      <file>com.google.javascript.jscomp.ShowByPathWarningsGuard.java</file>
+      <file>com.google.javascript.jscomp.SideEffectsAnalysis.java</file>
+      <file>com.google.javascript.jscomp.SimpleDefinitionFinder.java</file>
+      <file>com.google.javascript.jscomp.SimpleFunctionAliasAnalysis.java</file>
+      <file>com.google.javascript.jscomp.SimpleRegion.java</file>
+      <file>com.google.javascript.jscomp.SourceAst.java</file>
+      <file>com.google.javascript.jscomp.SourceExcerptProvider.java</file>
+      <file>com.google.javascript.jscomp.SourceFile.java</file>
+      <file>com.google.javascript.jscomp.SourceInformationAnnotator.java</file>
+      <file>com.google.javascript.jscomp.SourceMap.java</file>
+      <file>com.google.javascript.jscomp.SourceMap2.java</file>
+      <file>com.google.javascript.jscomp.SourceMapLegacy.java</file>
+      <file>com.google.javascript.jscomp.SpecializationAwareCompilerPass.java</file>
+      <file>com.google.javascript.jscomp.SpecializeModule.java</file>
+      <file>com.google.javascript.jscomp.StrictModeCheck.java</file>
+      <file>com.google.javascript.jscomp.StrictWarningsGuard.java</file>
+      <file>com.google.javascript.jscomp.Strings.java</file>
+      <file>com.google.javascript.jscomp.StripCode.java</file>
+      <file>com.google.javascript.jscomp.SuppressDocWarningsGuard.java</file>
+      <file>com.google.javascript.jscomp.SuspiciousPropertiesCheck.java</file>
+      <file>com.google.javascript.jscomp.SyntacticScopeCreator.java</file>
+      <file>com.google.javascript.jscomp.SyntheticAst.java</file>
+      <file>com.google.javascript.jscomp.testing.SimpleSourceExcerptProvider.java</file>
+      <file>com.google.javascript.jscomp.testing.TestErrorReporter.java</file>
+      <file>com.google.javascript.jscomp.TightenTypes.java</file>
+      <file>com.google.javascript.jscomp.Tracer.java</file>
+      <file>com.google.javascript.jscomp.TypeCheck.java</file>
+      <file>com.google.javascript.jscomp.TypedCodeGenerator.java</file>
+      <file>com.google.javascript.jscomp.TypedScopeCreator.java</file>
+      <file>com.google.javascript.jscomp.TypeInference.java</file>
+      <file>com.google.javascript.jscomp.TypeInferencePass.java</file>
+      <file>com.google.javascript.jscomp.TypeValidator.java</file>
+      <file>com.google.javascript.jscomp.UnfoldCompoundAssignments.java</file>
+      <file>com.google.javascript.jscomp.UnreachableCodeElimination.java</file>
+      <file>com.google.javascript.jscomp.UseSite.java</file>
+      <file>com.google.javascript.jscomp.VarCheck.java</file>
+      <file>com.google.javascript.jscomp.VariableMap.java</file>
+      <file>com.google.javascript.jscomp.VariableNameGenerator.java</file>
+      <file>com.google.javascript.jscomp.VariableReferenceCheck.java</file>
+      <file>com.google.javascript.jscomp.VariableRenamingPolicy.java</file>
+      <file>com.google.javascript.jscomp.VariableShadowDeclarationCheck.java</file>
+      <file>com.google.javascript.jscomp.VariableVisibilityAnalysis.java</file>
+      <file>com.google.javascript.jscomp.VerboseMessageFormatter.java</file>
+      <file>com.google.javascript.jscomp.WarningLevel.java</file>
+      <file>com.google.javascript.jscomp.WarningsGuard.java</file>
+      <file>com.google.javascript.rhino.CompilerEnvirons.java</file>
+      <file>com.google.javascript.rhino.Context.java</file>
+      <file>com.google.javascript.rhino.Decompiler.java</file>
+      <file>com.google.javascript.rhino.DToA.java</file>
+      <file>com.google.javascript.rhino.EcmaError.java</file>
+      <file>com.google.javascript.rhino.ErrorReporter.java</file>
+      <file>com.google.javascript.rhino.EvaluatorException.java</file>
+      <file>com.google.javascript.rhino.FunctionNode.java</file>
+      <file>com.google.javascript.rhino.IRFactory.java</file>
+      <file>com.google.javascript.rhino.JavaScriptException.java</file>
+      <file>com.google.javascript.rhino.JSDocInfo.java</file>
+      <file>com.google.javascript.rhino.JSDocInfoBuilder.java</file>
+      <file>com.google.javascript.rhino.jstype.AllType.java</file>
+      <file>com.google.javascript.rhino.jstype.ArrowType.java</file>
+      <file>com.google.javascript.rhino.jstype.BooleanLiteralSet.java</file>
+      <file>com.google.javascript.rhino.jstype.BooleanType.java</file>
+      <file>com.google.javascript.rhino.jstype.EnumElementType.java</file>
+      <file>com.google.javascript.rhino.jstype.EnumType.java</file>
+      <file>com.google.javascript.rhino.jstype.ErrorFunctionType.java</file>
+      <file>com.google.javascript.rhino.jstype.FunctionBuilder.java</file>
+      <file>com.google.javascript.rhino.jstype.FunctionParamBuilder.java</file>
+      <file>com.google.javascript.rhino.jstype.FunctionPrototypeType.java</file>
+      <file>com.google.javascript.rhino.jstype.FunctionType.java</file>
+      <file>com.google.javascript.rhino.jstype.IndexedType.java</file>
+      <file>com.google.javascript.rhino.jstype.InstanceObjectType.java</file>
+      <file>com.google.javascript.rhino.jstype.JSType.java</file>
+      <file>com.google.javascript.rhino.jstype.JSTypeNative.java</file>
+      <file>com.google.javascript.rhino.jstype.JSTypeRegistry.java</file>
+      <file>com.google.javascript.rhino.jstype.NamedType.java</file>
+      <file>com.google.javascript.rhino.jstype.NoObjectType.java</file>
+      <file>com.google.javascript.rhino.jstype.NoType.java</file>
+      <file>com.google.javascript.rhino.jstype.NullType.java</file>
+      <file>com.google.javascript.rhino.jstype.NumberType.java</file>
+      <file>com.google.javascript.rhino.jstype.ObjectType.java</file>
+      <file>com.google.javascript.rhino.jstype.ParameterizedType.java</file>
+      <file>com.google.javascript.rhino.jstype.PrototypeObjectType.java</file>
+      <file>com.google.javascript.rhino.jstype.ProxyObjectType.java</file>
+      <file>com.google.javascript.rhino.jstype.RecordType.java</file>
+      <file>com.google.javascript.rhino.jstype.RecordTypeBuilder.java</file>
+      <file>com.google.javascript.rhino.jstype.SimpleSlot.java</file>
+      <file>com.google.javascript.rhino.jstype.StaticScope.java</file>
+      <file>com.google.javascript.rhino.jstype.StaticSlot.java</file>
+      <file>com.google.javascript.rhino.jstype.StringType.java</file>
+      <file>com.google.javascript.rhino.jstype.TemplateType.java</file>
+      <file>com.google.javascript.rhino.jstype.TernaryValue.java</file>
+      <file>com.google.javascript.rhino.jstype.UnionType.java</file>
+      <file>com.google.javascript.rhino.jstype.UnionTypeBuilder.java</file>
+      <file>com.google.javascript.rhino.jstype.UnknownType.java</file>
+      <file>com.google.javascript.rhino.jstype.UnresolvedTypeExpression.java</file>
+      <file>com.google.javascript.rhino.jstype.ValueType.java</file>
+      <file>com.google.javascript.rhino.jstype.Visitor.java</file>
+      <file>com.google.javascript.rhino.jstype.VoidType.java</file>
+      <file>com.google.javascript.rhino.JSTypeExpression.java</file>
+      <file>com.google.javascript.rhino.Kit.java</file>
+      <file>com.google.javascript.rhino.Node.java</file>
+      <file>com.google.javascript.rhino.ObjArray.java</file>
+      <file>com.google.javascript.rhino.ObjToIntMap.java</file>
+      <file>com.google.javascript.rhino.Parser.java</file>
+      <file>com.google.javascript.rhino.RhinoException.java</file>
+      <file>com.google.javascript.rhino.ScriptOrFnNode.java</file>
+      <file>com.google.javascript.rhino.ScriptRuntime.java</file>
+      <file>com.google.javascript.rhino.SimpleErrorReporter.java</file>
+      <file>com.google.javascript.rhino.SourcePosition.java</file>
+      <file>com.google.javascript.rhino.testing.Asserts.java</file>
+      <file>com.google.javascript.rhino.testing.BaseJSTypeTestCase.java</file>
+      <file>com.google.javascript.rhino.testing.EmptyScope.java</file>
+      <file>com.google.javascript.rhino.testing.TestErrorReporter.java</file>
+      <file>com.google.javascript.rhino.Token.java</file>
+      <file>com.google.javascript.rhino.TokenStream.java</file>
+      <file>com.google.javascript.rhino.UintMap.java</file>
+      <file>com.google.javascript.rhino.UniqueTag.java</file>
+    </fixedFiles>
+  </bug>
+</bugrepository>
