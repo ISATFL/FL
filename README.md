@@ -1,0 +1,7 @@
+#Defcts4J缺陷报告
+
+<b>基于错误定位数据集Defectsj构建的用于基于信息检索缺陷定位的数据集</b>
+
+每个xml文件中主要包括错误报告的Summary和Description以及当前版本源码文件的相对路径。
+
+为了适配常用的基于信息检索的缺陷定位工具BugLocator，xml中fixedfile标签中为版本源码文件，而非修复文件。
